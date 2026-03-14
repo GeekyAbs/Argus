@@ -1,0 +1,7 @@
+{
+  "model": "RT-DETR-L",
+  "mAP50": 0.8286,
+  "mAP50_95": 0.4971,
+  "precision": 0.837,
+  "recall": 0.8107
+}
