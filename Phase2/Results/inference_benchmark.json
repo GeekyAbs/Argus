@@ -1,0 +1,23 @@
+[
+    {
+        "model": "PyTorch",
+        "num_images": 100,
+        "total_time_sec": 7.0520689487457275,
+        "fps": 14.180235719020569,
+        "latency_ms": 70.52068948745728
+    },
+    {
+        "model": "ONNX",
+        "num_images": 100,
+        "total_time_sec": 5.444176197052002,
+        "fps": 18.368251941248626,
+        "latency_ms": 54.44176197052002
+    },
+    {
+        "model": "TensorRT",
+        "num_images": 100,
+        "total_time_sec": 4.565303087234497,
+        "fps": 21.90435072747307,
+        "latency_ms": 45.65303087234497
+    }
+]
