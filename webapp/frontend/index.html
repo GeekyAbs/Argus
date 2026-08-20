@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ARGUS Live Detection</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --panel: #161b22;
+    --border: #2a303c;
+    --text: #e6e8eb;
+    --muted: #9aa4b2;
+    --accent: #3fb950;
+    --error: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0; font-size: 1.25rem; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .upload-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  input[type="file"] { color: var(--text); }
+
+  button {
+    background: var(--accent);
+    color: #04220f;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .feed-wrap {
+    display: flex;
+    justify-content: center;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  #feed { width: 100%; max-width: 900px; display: block; }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--muted);
+  }
+  .dot.processing { background: #d29922; }
+  .dot.done { background: var(--accent); }
+  .dot.error { background: var(--error); }
+
+  a.download { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>ARGUS Live Detection</h1>
+  <p>Dual RT-DETR inference (vehicles + rider safety) with live tracked overlays</p>
+</header>
+
+<main>
+  <section class="panel upload-row">
+    <input id="file-input" type="file" accept="image/*,video/*" />
+    <button id="upload-btn">Upload &amp; Process</button>
+    <div class="status-row">
+      <span class="dot" id="status-dot"></span>
+      <span id="status-text">idle</span>
+    </div>
+  </section>
+
+  <section class="panel feed-wrap">
+    <img id="feed" src="/api/stream" alt="live detection feed" />
+  </section>
+
+  <section class="panel" id="legend-panel">
+    <strong>Live class counts</strong>
+    <div id="legend" style="margin-top:8px; color: var(--muted);">no detections yet</div>
+    <div id="download-row" style="margin-top:10px;"></div>
+  </section>
+</main>
+
+<script>
+  const fileInput = document.getElementById("file-input");
+  const uploadBtn = document.getElementById("upload-btn");
+  const statusDot = document.getElementById("status-dot");
+  const statusText = document.getElementById("status-text");
+  const legend = document.getElementById("legend");
+  const downloadRow = document.getElementById("download-row");
+
+  uploadBtn.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      alert("Choose an image or video first.");
+      return;
+    }
+    uploadBtn.disabled = true;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Upload failed");
+      }
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      uploadBtn.disabled = false;
+    }
+  });
+
+  async function pollStatus() {
+    try {
+      const res = await fetch("/api/status");
+      const data = await res.json();
+      statusText.textContent = data.state || "idle";
+      statusDot.className = "dot " + (data.state || "idle");
+
+      const counts = data.counts || {};
+      const entries = Object.entries(counts);
+      legend.textContent = entries.length
+        ? entries.sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}: ${v}`).join("  |  ")
+        : "no detections yet";
+
+      downloadRow.innerHTML = "";
+      if (data.state === "done" && data.output_url) {
+        const a = document.createElement("a");
+        a.href = data.output_url;
+        a.className = "download";
+        a.textContent = "Download annotated video";
+        a.download = "";
+        downloadRow.appendChild(a);
+      }
+      if (data.state === "error" && data.error) {
+        legend.textContent = "error: " + data.error;
+      }
+    } catch (e) {
+      // stream endpoint keeps working even if status polling hiccups
+    }
+  }
+
+  setInterval(pollStatus, 1000);
+  pollStatus();
+</script>
+</body>
+</html>

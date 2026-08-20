@@ -2,6 +2,25 @@
 
 **Status: Under Development**
 
+## Run Dual-Model Video Inference
+
+The CPU pipeline loads the 14-class vehicle/pedestrian model and the helmet/license-plate model, runs their ByteTrack instances concurrently for every frame, and shows both sets of tracked boxes live. Green boxes are vehicle/pedestrian detections; orange boxes are helmet/license-plate detections. Press `q` or `Esc` to stop early.
+
+Create the environment and install dependencies:
+
+```bash
+uv venv --python 3.11
+uv sync
+```
+
+Set `VIDEO_PATH` near the top of `dual_model_video.py`, then run:
+
+```bash
+uv run python dual_model_video.py
+```
+
+The script directly downloads the two supplied Kaggle Hub models. Kaggle downloads require credentials configured through the Kaggle API. The annotated video is saved to `output/tracked_video.mp4`. Both models are loaded as RT-DETR models and run on the GPU when CUDA is available, falling back to CPU otherwise.
+
 ARGUS is an edge-focused traffic monitoring system designed to detect vehicles, license plates, and rider safety violations while maintaining persistent tracking across video streams.  
 The project aims to build a modular pipeline capable of running on embedded hardware for real-time traffic observation, enforcement support, and data-driven traffic analytics.
 
