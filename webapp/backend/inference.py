@@ -80,15 +80,27 @@ def draw_legend(frame: np.ndarray, counts: Counter) -> None:
         y += line_height
 
 
-def run_dual_model(models: DualModels, frame: np.ndarray) -> tuple[np.ndarray, Counter]:
-    """Run both RT-DETR models on one frame concurrently and draw combined results."""
+def infer(models: DualModels, frame: np.ndarray) -> tuple[object, object]:
+    """Run both RT-DETR models on one frame concurrently; returns (vehicle, safety) results."""
     vehicle_future = _EXECUTOR.submit(track_frame, models.vehicle, frame)
     safety_future = _EXECUTOR.submit(track_frame, models.safety, frame)
-    vehicle_result = vehicle_future.result()
-    safety_result = safety_future.result()
+    return vehicle_future.result(), safety_future.result()
 
+
+def annotate(frame: np.ndarray, vehicle_result, safety_result) -> Counter:
+    """Draw both models' boxes onto `frame` in place and return the per-class counts.
+
+    Kept separate from `infer` so skipped frames can reuse the most recent results
+    instead of being written out bare.
+    """
     counts: Counter = Counter()
     draw_detections(frame, vehicle_result, config.VEHICLE_COLOR, "vehicle", counts)
     draw_detections(frame, safety_result, config.SAFETY_COLOR, "safety", counts)
     draw_legend(frame, counts)
-    return frame, counts
+    return counts
+
+
+def run_dual_model(models: DualModels, frame: np.ndarray) -> tuple[np.ndarray, Counter]:
+    """Run both RT-DETR models on one frame concurrently and draw combined results."""
+    vehicle_result, safety_result = infer(models, frame)
+    return frame, annotate(frame, vehicle_result, safety_result)

@@ -6,18 +6,22 @@ in the browser as boxes drawn over the feed.
 
 ## Models
 
-- `argus-other-full-v1/best.pt` — vehicles: truck, cyclist, bike, tempo, car, jeep, toto,
-  e-rickshaw, auto-rickshaw, bus, van, cycle-rickshaw, person, taxi
-- `argus-i-pytorch-default-v1/best.pt` — rider safety: With Helmet, Without Helmet, licence
+Weights are read from the repo's `models/` directory (see `backend/config.py`):
 
-Both are loaded once at startup and run concurrently per frame with ByteTrack
-(`persist=True`, `stream=True`) for stable track IDs, mirroring `Argus/dual_model_video.py`.
+- `models/model2.pt` — vehicles (14 classes): truck, cyclist, bike, tempo, car, jeep, toto,
+  e-rickshaw, auto-rickshaw, bus, van, cycle-rickshaw, person, taxi
+- `models/model1.pt` — rider safety (3 classes): With Helmet, Without Helmet, licence
+
+Both are RT-DETR-l checkpoints, loaded once at startup and run concurrently per frame with
+ByteTrack (`persist=True`, `stream=True`) for stable track IDs, mirroring `dual_model_video.py`.
 
 ## Run
 
+From the repo root:
+
 ```
-pip install -r webapp/requirements.txt
-uvicorn backend.main:app --reload --app-dir webapp
+uv sync
+uv run uvicorn backend.main:app --app-dir webapp --host 127.0.0.1 --port 8000
 ```
 
 Open http://localhost:8000 — upload a file, the live feed and per-class counts update as
@@ -25,7 +29,8 @@ frames are processed. Finished videos get a download link to the annotated `.mp4
 
 ## Notes
 
-- No CUDA detected in this environment; inference runs on CPU, so live video processing
-  will be slower than real-time. Tune `IMG_SIZE` / `FRAME_SKIP` in `backend/config.py` if
-  needed for your hardware.
+- `pyproject.toml` installs the CUDA 12.6 PyTorch wheels. On a machine without an NVIDIA GPU,
+  swap the `[[tool.uv.index]]` url back to `https://download.pytorch.org/whl/cpu`.
+- `backend/config.py` knobs: `IMG_SIZE`, `CONFIDENCE`, `STREAM_FPS`, and `FRAME_SKIP`
+  (process every Nth frame — skipped frames are written to the output video unannotated).
 - One job runs at a time — a new upload replaces whatever is currently processing.

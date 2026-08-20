@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 
 from . import config
-from .inference import DualModels, run_dual_model
+from .inference import DualModels, annotate, infer, run_dual_model
 
 
 def _encode_jpeg(frame: np.ndarray) -> bytes:
@@ -108,21 +108,26 @@ class JobProcessor:
             raise RuntimeError(f"Could not create output video: {self.output_path}")
 
         frame_index = 0
+        last_results: Optional[tuple] = None
         try:
             while not self._stop_event.is_set():
                 ok, frame = capture.read()
                 if not ok:
                     break
 
-                frame_index += 1
-                if frame_index % config.FRAME_SKIP != 0:
-                    writer.write(frame)
-                    continue
+                # Only every FRAME_SKIP-th frame is run through the models, but every
+                # frame gets boxes drawn on it -- skipped frames reuse the most recent
+                # results so the output video does not flicker between annotated and
+                # bare frames. Boxes on reused frames lag by up to FRAME_SKIP-1 frames.
+                if frame_index % config.FRAME_SKIP == 0:
+                    last_results = infer(self.models, frame)
 
-                annotated, counts = run_dual_model(self.models, frame)
-                self.counts = counts
-                writer.write(annotated)
-                self._set_latest(annotated)
+                if last_results is not None:
+                    self.counts = annotate(frame, *last_results)
+
+                frame_index += 1
+                writer.write(frame)
+                self._set_latest(frame)
         finally:
             capture.release()
             writer.release()

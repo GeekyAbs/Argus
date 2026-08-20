@@ -3,4 +3,6 @@ uvicorn[standard]
 python-multipart
 opencv-python
 ultralytics
+torch
+torchvision
 lap
